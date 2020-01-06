@@ -33,6 +33,9 @@ import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.sink.SinkConnector;
 import plugin.kafka.sink.elastic.configs.ElasticsearchSinkConnectorConfig;
 
+/**
+ * Kafka sink connector into Elasticsearch v7+
+ */
 @Slf4j
 public class ElasticSinkConnect extends SinkConnector {
 
@@ -79,6 +82,6 @@ public class ElasticSinkConnect extends SinkConnector {
 
   @Override
   public String version() {
-    return null;
+    return "1.0.0";
   }
 }

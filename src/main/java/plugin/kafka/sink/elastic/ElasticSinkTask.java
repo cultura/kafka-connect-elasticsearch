@@ -47,6 +47,10 @@ import plugin.kafka.sink.elastic.health.TaskHealth;
 import plugin.kafka.sink.elastic.utils.DataConverter;
 import plugin.kafka.sink.elastic.utils.Mapping;
 
+/**
+ * This task send every data collected from kafka in the {@link Orchestrator} to be sent
+ * asynchronously to Elasticsearch
+ */
 @Slf4j
 public class ElasticSinkTask extends SinkTask {
 
@@ -68,6 +72,12 @@ public class ElasticSinkTask extends SinkTask {
     return "1.0.0";
   }
 
+  /**
+   * Retrieve the whole configuration from the props and initialize the {@link ElasticClient},
+   * the {@link SharedContext} and the {@link Orchestrator}.
+   * @param props Map containing the connector instance configuration define by
+   * {@link ElasticsearchSinkConnectorConfig}
+   */
   @Override
   public void start(Map<String, String> props) {
     log.info("---------------------------> start task");
@@ -136,6 +146,17 @@ public class ElasticSinkTask extends SinkTask {
     }
   }
 
+  /**
+   * For each {@link SinkRecord}, create the document key, convert the {@link SinkRecord#value()} into
+   * Elasticsearch JSON source, create an {@link IndexRequest} and send it to the {@link Orchestrator}
+   * to be send asynchronously to Elasticsearch
+   *
+   * The first time this method is called, it check if the index exist and create it if it is not the case.
+   *
+   * @param records Collection of deserialize records taken from kafka. It doesn't matter if those
+   * records where in avro, JSON, string... kafka connect transform component convert them into {@link SinkRecord} before
+   * using the method put.
+   */
   @Override
   public void put(Collection<SinkRecord> records) {
     for (SinkRecord record : records) {
@@ -151,6 +172,13 @@ public class ElasticSinkTask extends SinkTask {
     }
   }
 
+  /**
+   * Depending of the connector configuration {@link ElasticsearchSinkConnectorConfig#INDEX_USE_KEY_AS_ID},
+   * use the record key as doc id or generate an id from "timestamp-{@link Random#nextInt()}
+   *
+   * @param key kafka record key, might be null
+   * @return the id of the Elasticsearch doc
+   */
   protected String generateDocId(String key) {
     String docId;
     if (isRecordKeyId && StringUtils.isNotBlank(key)){
@@ -161,6 +189,13 @@ public class ElasticSinkTask extends SinkTask {
     return docId;
   }
 
+  /**
+   * First time this method is called, check if the index exist and create it if needed.
+   * The index mapping is generated from record value schema, this is why the index is not created
+   * during the {@link ElasticSinkTask#start(Map)}.
+   *
+   * @param record record containing the schema used to map the index.
+   */
   private synchronized void createIndexIfNeeded(SinkRecord record) {
     if (!isIndexCreated) {
       JsonNode jsonNode = Mapping.inferMapping(record.valueSchema());
@@ -169,11 +204,19 @@ public class ElasticSinkTask extends SinkTask {
     }
   }
 
+  /**
+   * Empty the {@link SharedContext#getUnsentRecords()} and commit the last offset.
+   *
+   * @param currentOffsets contain the kafka offsets, not used in this method.
+   */
   @Override
   public void flush(Map<TopicPartition, OffsetAndMetadata> currentOffsets) {
     this.orchestrator.flush();
   }
 
+  /**
+   * Stop the {@link Orchestrator} thread pool and the {@link ElasticClient}
+   */
   @Override
   public void stop() {
     log.info("---------------------------> Stopping task");

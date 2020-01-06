@@ -21,12 +21,18 @@
 
 package plugin.kafka.sink.elastic.queue;
 
+import java.util.Map;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.utils.Time;
 import org.apache.kafka.connect.errors.ConnectException;
+import plugin.kafka.sink.elastic.ElasticSinkTask;
+import plugin.kafka.sink.elastic.configs.ElasticsearchSinkConnectorConfig;
 import plugin.kafka.sink.elastic.configs.SharedContext;
 
+/**
+ * Handle the delay when buffer is full or during {@link ElasticSinkTask#flush(Map)}
+ */
 @Slf4j
 @Builder
 public class QueueDelayer {
@@ -34,6 +40,10 @@ public class QueueDelayer {
   private Time time;
   private SharedContext sharedContext;
 
+  /**
+   * Wait {@link ElasticsearchSinkConnectorConfig#LINGER_MS_CONFIG} until buffer isn't full or
+   * {@link ElasticsearchSinkConnectorConfig#FLUSH_TIMEOUT_MS_CONFIG} is reach.
+   */
   public void waitBeforeAddRequest() {
     final long startTime = time.milliseconds();
     for (long elapsedMs = time.milliseconds() - startTime;
@@ -51,6 +61,11 @@ public class QueueDelayer {
     }
   }
 
+  /**
+   * Wait {@link ElasticsearchSinkConnectorConfig#LINGER_MS_CONFIG} until buffer is empty or
+   * {@link ElasticsearchSinkConnectorConfig#FLUSH_TIMEOUT_MS_CONFIG} is reach.
+   * @throws InterruptedException
+   */
   public void waitDuringFlush() throws InterruptedException {
     final long startTime = time.milliseconds();
     long elapsedMs = startTime - time.milliseconds();

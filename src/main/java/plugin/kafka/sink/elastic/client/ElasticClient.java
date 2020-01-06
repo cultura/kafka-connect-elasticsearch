@@ -61,6 +61,14 @@ public class ElasticClient {
     this.client =  ClientBuilder.initClient(elasticConfig, config);
   }
 
+  /**
+   * Check if the index exist, and create it if not.
+   * Because of the distributed aspect of the connector, it might append that two instances create
+   * the index in the same time, and an exception will result of it. This is the reason why exception
+   * aren't blocking in this method.
+   *
+   * @param mapping the index mapping created from the first record.
+   */
   public synchronized void createIndex(String mapping) {
     log.debug("---------------------------> Check if index {} exists", indexName);
     try {
@@ -82,10 +90,23 @@ public class ElasticClient {
     }
   }
 
+  /**
+   * Index data into Elasticsearch
+   * @param bulkRequest the request
+   * @return the bulk response
+   * @throws IOException
+   */
   public BulkResponse bulk(BulkRequest bulkRequest) throws IOException {
     return client.bulk(bulkRequest, RequestOptions.DEFAULT);
   }
 
+  /**
+   * Convert the url into an {@link HttpHost}.
+   * The url has to match the {@link ElasticClient#ELASTIC_HOST_PATTERN}.
+   *
+   * @param url an Elasticsearch node or load balancer url
+   * @return the http host of an Elasticsearch node or load balancer url
+   */
   public static HttpHost buildElasticHost(String url) {
     Matcher matcher = ELASTIC_HOST_PATTERN.matcher(url);
     if (matcher.matches()) {
@@ -96,6 +117,9 @@ public class ElasticClient {
     }
   }
 
+  /**
+   * Close the client.
+   */
   public void close(){
     try {
       this.client.close();
@@ -105,7 +129,7 @@ public class ElasticClient {
   }
 
   /**
-   * After a long idle time, the client loose web socket connection.
+   * After a long idle time, the client might loose web socket connection.
    * The client has to be restarting to work again.
    */
   public synchronized void resetClient(){

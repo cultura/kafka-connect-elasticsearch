@@ -31,7 +31,12 @@ import lombok.Setter;
 import org.elasticsearch.action.index.IndexRequest;
 import plugin.kafka.sink.elastic.client.ElasticClient;
 import plugin.kafka.sink.elastic.health.TaskHealth;
+import plugin.kafka.sink.elastic.workers.BulkProcessorTask;
 
+/**
+ * Contain the context used by the connector to run properly. Every classes use it to have access
+ * to the configuration values, the requests queue, the state of the task and the {@link ElasticClient}
+ */
 @Builder
 @Getter
 public class SharedContext {
@@ -54,7 +59,14 @@ public class SharedContext {
   @Setter
   private volatile boolean flushRequested;
 
+  /**
+   * Number of requests currently being sent into Elasticsearch
+   */
   private AtomicInteger inFlightRecords;
+
+  /**
+   * Requests waiting to be sent into Elasticsearch
+   */
   private ConcurrentLinkedQueue<IndexRequest> unsentRecords;
 
   public void init(){
@@ -62,6 +74,10 @@ public class SharedContext {
     this.unsentRecords = new ConcurrentLinkedQueue<>();
   }
 
+  /**
+   * Give the total number of requests in the connector task
+   * @return the total number of requests in the connector task
+   */
   public synchronized int bufferedRecords() {
     return unsentRecords.size() + inFlightRecords.get();
   }
@@ -82,6 +98,12 @@ public class SharedContext {
     this.inFlightRecords.addAndGet(- batchSize);
   }
 
+  /**
+   * Create a bulk of {@link IndexRequest}. Remove the firsts {@link ElasticsearchSinkConnectorConfig#BATCH_SIZE_CONFIG}
+   * or the full queue, and increment the {@link SharedContext#inFlightRecords}
+   *
+   * @return the list or request the {@link BulkProcessorTask} will send to Elasticsearch
+   */
   public synchronized List<IndexRequest> createBulk() {
     int bulkSize = Math.min(
         getBatchSize(), getUnsentRecords().size());

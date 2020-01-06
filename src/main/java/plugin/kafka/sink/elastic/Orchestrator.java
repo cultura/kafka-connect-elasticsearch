@@ -21,6 +21,7 @@
 
 package plugin.kafka.sink.elastic;
 
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -33,10 +34,17 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.utils.SystemTime;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.elasticsearch.action.index.IndexRequest;
+import plugin.kafka.sink.elastic.client.ElasticClient;
+import plugin.kafka.sink.elastic.configs.ElasticsearchSinkConnectorConfig;
 import plugin.kafka.sink.elastic.configs.SharedContext;
+import plugin.kafka.sink.elastic.health.TaskHealth;
 import plugin.kafka.sink.elastic.queue.QueueDelayer;
 import plugin.kafka.sink.elastic.workers.BulkProcessorTask;
 
+/**
+ * This class is the brain of the connector. It handle the thread pool, put the records into the
+ * {@link ConcurrentLinkedQueue}, handle the flush and close connections.
+ */
 @Builder
 @Slf4j
 public class Orchestrator {
@@ -47,6 +55,9 @@ public class Orchestrator {
   @Getter
   private SharedContext sharedContext;
 
+  /**
+   * Init the {@link QueueDelayer} and the thread pool with the instances of {@link BulkProcessorTask}
+   */
   public void initOrchestrator(){
     this.queueDelayer = QueueDelayer.builder()
         .time(new SystemTime())
@@ -60,7 +71,12 @@ public class Orchestrator {
     }
   }
 
-
+  /**
+   * Create a thread factory with exception hook to stop the connector task if an exception is thrown
+   * in a {@link BulkProcessorTask}
+   *
+   * @return the thread factory with the proper configuration
+   */
   private ThreadFactory makeThreadFactory() {
     final AtomicInteger threadCounter = new AtomicInteger();
     final Thread.UncaughtExceptionHandler uncaughtExceptionHandler =
@@ -82,7 +98,16 @@ public class Orchestrator {
     };
   }
 
-
+  /**
+   * Add request into the {@link SharedContext#getUnsentRecords()} if the buffer is not full
+   * ({@link ElasticsearchSinkConnectorConfig#MAX_BUFFERED_RECORDS_CONFIG}).
+   * Else, wait {@link ElasticsearchSinkConnectorConfig#BUFFERED_LINGER_MS_CONFIG}.
+   * If the buffer is still full, throw a {@link ConnectException}
+   *
+   * if Task is in failure state ({@link TaskHealth}), throw a {@link ConnectException}
+   *
+   * @param request the index request
+   */
   public void addRequest(IndexRequest request) {
     sharedContext.getTaskHealth().throwIfException();
     if (sharedContext.bufferedRecords() >= sharedContext.getMaxBufferedRecords()) {
@@ -95,6 +120,11 @@ public class Orchestrator {
     sharedContext.addRecord(request);
   }
 
+  /**
+   * Wait until the buffer is empty or timeout is reach ({@link ElasticsearchSinkConnectorConfig#FLUSH_TIMEOUT_MS_CONFIG})
+   *
+   * if Task is in failure state ({@link TaskHealth}), throw a {@link ConnectException}
+   */
   public void flush() {
     sharedContext.getTaskHealth().throwIfException();
     log.info("---------------------------> start flush with unsent records : {}",
@@ -116,18 +146,27 @@ public class Orchestrator {
     log.info("---------------------------> flush terminated with success");
   }
 
-
+  /**
+   * Set the task state to failure and {@link Orchestrator#stop()} the task
+   * @param e the uncaught exception
+   */
   private void failAndStop(Throwable e) {
     sharedContext.getTaskHealth().setException(new ConnectException(e));
     stop();
   }
 
+  /**
+   * Empty and close the {@link ThreadPoolExecutor}, and close the {@link ElasticClient}
+   */
   public void stop() {
     this.sharedContext.setStopRequested(true);
     stopExecutor();
     this.sharedContext.getClient().close();
   }
 
+  /**
+   * Close the {@link ThreadPoolExecutor} properly if possible, force close it else
+   */
   private void stopExecutor() {
     synchronized (this) {
       executor.shutdown();

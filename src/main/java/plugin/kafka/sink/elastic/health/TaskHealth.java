@@ -25,6 +25,9 @@ import lombok.Getter;
 import lombok.Setter;
 import org.apache.kafka.connect.errors.ConnectException;
 
+/**
+ * Keep the first unrecoverable exception thrown in the task instance.
+ */
 @Getter
 @Setter
 public class TaskHealth {

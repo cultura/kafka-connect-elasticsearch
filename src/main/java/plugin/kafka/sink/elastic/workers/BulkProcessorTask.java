@@ -32,8 +32,14 @@ import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.common.unit.TimeValue;
+import plugin.kafka.sink.elastic.configs.ElasticsearchSinkConnectorConfig;
 import plugin.kafka.sink.elastic.configs.SharedContext;
+import plugin.kafka.sink.elastic.health.TaskHealth;
 
+/**
+ * This class is the worker of the connector. It's an infinite while loop who take a batch from
+ * the {@link SharedContext#getUnsentRecords()} and send them to Elasticsearch.
+ */
 @Slf4j
 public class BulkProcessorTask implements Runnable {
 
@@ -44,6 +50,14 @@ public class BulkProcessorTask implements Runnable {
     this.sharedContext = sharedContext;
   }
 
+  /**
+   * The worker loop
+   * A delay {@link BulkProcessorTask#waitBeforeCreatingBatch()} make sur the bulk is as close as possible
+   * of {@link ElasticsearchSinkConnectorConfig#BATCH_SIZE_CONFIG} to use the Elasticsearch bulk API
+   *
+   * Unrecoverable exception are thrown as {@link ConnectException}, the thread factory handle it as
+   * {@link TaskHealth#setException(ConnectException)}
+   */
   @Override
   public void run() {
     log.info("---------------------------> farmer thread started");
@@ -58,13 +72,20 @@ public class BulkProcessorTask implements Runnable {
         }
       } catch (Exception e) {
         log.error("Unexpected error while waiting before flushing bulk", e);
-        sharedContext.getTaskHealth().setException(new ConnectException(e));
         sharedContext.setStopRequested(true);
         throw new ConnectException(e);
       }
     }
   }
 
+  /**
+   * If there are less {@link IndexRequest} in the queue than {@link ElasticsearchSinkConnectorConfig#BATCH_SIZE_CONFIG},
+   * wait {@link ElasticsearchSinkConnectorConfig#LINGER_MS_CONFIG} creating a bulk
+   *
+   * During flush process, delay is inactive because the queue has to be empty as fast as possible
+   *
+   * @throws InterruptedException
+   */
   private void waitBeforeCreatingBatch() throws InterruptedException {
     if (!sharedContext.isFlushRequested() && sharedContext.getUnsentRecords().size() < sharedContext
         .getBatchSize()) {
@@ -74,6 +95,12 @@ public class BulkProcessorTask implements Runnable {
     }
   }
 
+  /**
+   * Create and send the bulk request to Elasticsearch. In case of failure, retry
+   * {@link ElasticsearchSinkConnectorConfig#MAX_RETRIES_CONFIG} times and fail.
+   *
+   * @param bulk list of {@link IndexRequest} to send to Elasticsearch
+   */
   private void sendBulk(List<IndexRequest> bulk) {
     BulkResponse bulkResponse;
     BulkRequest bulkRequest = new BulkRequest();
@@ -96,6 +123,16 @@ public class BulkProcessorTask implements Runnable {
         "Unable to index data into elasticsearch after " + sharedContext.getMaxRetries() + " attempts");
   }
 
+  /**
+   * Check the response failures. Return true if no failures or data format exception : it does not depend on
+   * Elasticsearch, format may be corrupted.
+   *
+   * Return false for every other failures.
+   *
+   * @param bulk use for logging purpose
+   * @param bulkResponse the response with possible failure
+   * @return true or false depending of failure message
+   */
   private boolean HandleResponse(List<IndexRequest> bulk, BulkResponse bulkResponse) {
     if (!bulkResponse.hasFailures()) {
       log.debug("batch {} ---------------------------> successfully send {} records into elastic",
