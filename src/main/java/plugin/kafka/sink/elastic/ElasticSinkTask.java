@@ -14,7 +14,7 @@
     GNU Lesser General Public License for more details.
 
     You should have received a copy of the GNU Lesser General Public License
-    along with Foobar.  If not, see <https://www.gnu.org/licenses/>.
+    along with kafka-connect-elasticsearch.  If not, see <https://www.gnu.org/licenses/>.
 
     contact: team.api.support@cultura.fr
  */
@@ -25,6 +25,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Random;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -55,9 +57,17 @@ import plugin.kafka.sink.elastic.utils.Mapping;
 public class ElasticSinkTask extends SinkTask {
 
   private static final int RANDOM_BOUND = 1_000_000;
+  public static final String ROUTING_REGEX_BEGENNING = ".*(\"";
+  public static final String ROUTING_REGEX_END = "\":\"([^,}]*)\",?).*";
   @Getter
   private Orchestrator orchestrator;
   private String indexName;
+  @Setter
+  private boolean routingEnable;
+  @Setter
+  private String routingFieldRegex;
+  @Setter
+  private Pattern routingFieldPattern;
   private boolean isIndexCreated;
   @Setter
   private boolean isRecordKeyId;
@@ -89,6 +99,12 @@ public class ElasticSinkTask extends SinkTask {
       int readTimeoutMS = config.getInt(ElasticsearchSinkConnectorConfig.READ_TIMEOUT_MS_CONFIG);
       this.indexName = config.getString(ElasticsearchSinkConnectorConfig.INDEX_NAME);
       isRecordKeyId = config.getBoolean(ElasticsearchSinkConnectorConfig.INDEX_USE_KEY_AS_ID);
+      routingEnable = config.getBoolean(ElasticsearchSinkConnectorConfig.ROUTING_ENABLE);
+
+      String routingFieldName = config.getString(ElasticsearchSinkConnectorConfig.ROUTING_FIELD_NAME);
+      routingFieldRegex = ROUTING_REGEX_BEGENNING + routingFieldName + ROUTING_REGEX_END;
+      routingFieldPattern = Pattern.compile(routingFieldRegex);
+
       int shardNumber = config.getInt(ElasticsearchSinkConnectorConfig.NUMBER_OF_SHARD);
       int replica = config.getInt(ElasticsearchSinkConnectorConfig.NUMBER_OF_REPLICA);
       int maxBufferedRecords = config.getInt(ElasticsearchSinkConnectorConfig.MAX_BUFFERED_RECORDS_CONFIG);
@@ -166,10 +182,31 @@ public class ElasticSinkTask extends SinkTask {
       String key = DataConverter.convertKey(record);
       String payload = DataConverter.getPayload(record);
       if (payload!=null) {
-        this.orchestrator.addRequest(new IndexRequest(indexName).id(generateDocId(key))
-            .source(payload, XContentType.JSON));
+        IndexRequest indexRequest = new IndexRequest(indexName).id(generateDocId(key));
+        if (routingEnable){
+          payload = addRouting(payload, indexRequest);
+        }
+        this.orchestrator.addRequest(indexRequest.source(payload, XContentType.JSON));
       }
     }
+  }
+
+  /**
+   * Extract routing value from the payload, add it to the {@link IndexRequest#routing(String)},
+   * and remove the routing field from the payload.
+   * @param payload Source of the request
+   * @param indexRequest index request
+   * @return payload without the routing field
+   */
+  public String addRouting(String payload, IndexRequest indexRequest) {
+    String source = payload;
+    Matcher matcher = routingFieldPattern.matcher(source);
+    if (matcher.matches()){
+      String routingValue = matcher.group(2);
+      indexRequest.routing(routingValue);
+      source = source.replace(matcher.group(1), "");
+    }
+    return source;
   }
 
   /**

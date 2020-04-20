@@ -14,7 +14,7 @@
     GNU Lesser General Public License for more details.
 
     You should have received a copy of the GNU Lesser General Public License
-    along with Foobar.  If not, see <https://www.gnu.org/licenses/>.
+    along with kafka-connect-elasticsearch.  If not, see <https://www.gnu.org/licenses/>.
 
     contact: team.api.support@cultura.fr
  */
@@ -112,6 +112,14 @@ public class ElasticsearchSinkConnectorConfig extends AbstractConfig {
       + "milliseconds for the Elasticsearch server to send a response. The task fails "
       + "if any read operation times out, and will need to be restarted to resume "
       + "further operations.";
+
+  public static final String ROUTING_ENABLE = "elastic.rooting.enable";
+  private static final String ROUTING_ENABLE_DOC = "Is a specific routing required during the indexation? "
+      + "Required for example if a parent / child relationship is on the index.";
+  public static final String ROUTING_FIELD_NAME = "elastic.rooting.field.name";
+  private static final String ROUTING_FIELD_NAME_DOC = "Name of the field who store the rooting value. "
+      + "The routing field type must be string."
+      + "This configuration will be ignored if routing is disable. The field will not be indexed into Elasticsearch.";
 
   private static final String ELASTICSEARCH_SECURITY_PROTOCOL_CONFIG = "elastic.security.protocol";
   private static final String ELASTICSEARCH_SECURITY_PROTOCOL_DOC =
@@ -249,6 +257,26 @@ public class ElasticsearchSinkConnectorConfig extends AbstractConfig {
         Width.SHORT,
         "Max In-flight Requests"
     ).define(
+        ROUTING_ENABLE,
+        Type.BOOLEAN,
+        false,
+        Importance.LOW,
+        ROUTING_ENABLE_DOC,
+        group,
+        ++order,
+        Width.MEDIUM,
+        "Routing enable"
+    ).define(
+        ROUTING_FIELD_NAME,
+        Type.STRING,
+        "",
+        Importance.LOW,
+        ROUTING_FIELD_NAME_DOC,
+        group,
+        ++order,
+        Width.MEDIUM,
+        "Routing enable"
+    ).define(
         NUMBER_OF_SHARD,
         Type.INT,
         10,
@@ -256,7 +284,7 @@ public class ElasticsearchSinkConnectorConfig extends AbstractConfig {
         NUMBER_OF_SHARD_DOC,
         group,
         ++order,
-        Width.LONG,
+        Width.MEDIUM,
         "Number of shards"
     ).define(
         NUMBER_OF_REPLICA,
@@ -266,7 +294,7 @@ public class ElasticsearchSinkConnectorConfig extends AbstractConfig {
         NUMBER_OF_REPLICA_DOC,
         group,
         ++order,
-        Width.LONG,
+        Width.MEDIUM,
         "Number of replica"
     ).define(
         MAX_BUFFERED_RECORDS_CONFIG,

@@ -14,7 +14,7 @@
     GNU Lesser General Public License for more details.
 
     You should have received a copy of the GNU Lesser General Public License
-    along with Foobar.  If not, see <https://www.gnu.org/licenses/>.
+    along with kafka-connect-elasticsearch.  If not, see <https://www.gnu.org/licenses/>.
 
     contact: team.api.support@cultura.fr
  */
@@ -24,8 +24,13 @@ package plugin.kafka.sink.elastic;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static plugin.kafka.sink.elastic.ElasticSinkTask.ROUTING_REGEX_BEGENNING;
+import static plugin.kafka.sink.elastic.ElasticSinkTask.ROUTING_REGEX_END;
 
+import java.util.regex.Pattern;
 import org.apache.kafka.common.utils.SystemTime;
+import org.elasticsearch.action.index.IndexRequest;
 import org.junit.jupiter.api.Test;
 
 public class ElasticSinkTaskTest {
@@ -50,6 +55,34 @@ public class ElasticSinkTaskTest {
     elasticSinkTask.setRecordKeyId(false);
     elasticSinkTask.setTime(new SystemTime());
     assertNotNull(elasticSinkTask.generateDocId(null));
+  }
+
+  @Test
+  public void should_add_routing(){
+    String routingRegex = ROUTING_REGEX_BEGENNING + "ean" + ROUTING_REGEX_END;
+    elasticSinkTask.setRoutingFieldRegex(routingRegex);
+    elasticSinkTask.setRoutingFieldPattern(Pattern.compile(routingRegex));
+
+    String payload ="{\"editeur\":\"\",\"nomenclature\":\"PCE\",\"ean\":\"366482400048\",\"diffuseur\":\"\"}";
+    IndexRequest indexRequest = new IndexRequest();
+    String payloadClean = elasticSinkTask.addRouting(payload, indexRequest);
+    assertEquals("{\"editeur\":\"\",\"nomenclature\":\"PCE\",\"diffuseur\":\"\"}", payloadClean);
+    assertEquals("366482400048", indexRequest.routing());
+
+  }
+
+  @Test
+  public void should_not_add_routing(){
+    String routingRegex = ROUTING_REGEX_BEGENNING + "codePro" + ROUTING_REGEX_END;
+    elasticSinkTask.setRoutingFieldRegex(routingRegex);
+    elasticSinkTask.setRoutingFieldPattern(Pattern.compile(routingRegex));
+
+    String payload ="{\"editeur\":\"\",\"nomenclature\":\"PCE\",\"ean\":\"366482400048\",\"diffuseur\":\"\"}";
+    IndexRequest indexRequest = new IndexRequest();
+    String payloadClean = elasticSinkTask.addRouting(payload, indexRequest);
+    assertEquals(payload, payloadClean);
+    assertNull(indexRequest.routing());
+
   }
 
 }
