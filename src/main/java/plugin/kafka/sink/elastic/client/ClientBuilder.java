@@ -44,7 +44,7 @@ import plugin.kafka.sink.elastic.configs.ElasticConfig;
 import plugin.kafka.sink.elastic.configs.ElasticsearchSinkConnectorConfig;
 
 /**
- * This class is here only for test purpose. It allow us to mock client creation.
+ * This class is here only for test purpose. It allows us to mock client creation.
  */
 @Slf4j
 public final class ClientBuilder {

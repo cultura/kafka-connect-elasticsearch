@@ -210,7 +210,7 @@ public class ElasticSinkTask extends SinkTask {
   }
 
   /**
-   * Depending of the connector configuration {@link ElasticsearchSinkConnectorConfig#INDEX_USE_KEY_AS_ID},
+   * Depending on the connector configuration {@link ElasticsearchSinkConnectorConfig#INDEX_USE_KEY_AS_ID},
    * use the record key as doc id or generate an id from "timestamp-{@link Random#nextInt()}
    *
    * @param key kafka record key, might be null

@@ -98,7 +98,7 @@ public class ElasticsearchSinkConnectorConfig extends AbstractConfig {
 
   public static final String INDEX_NAME = "index.name";
   private static final String INDEX_NAME_DOC =
-      "The name of the destination index. If the index does not exists, it will be created at the "
+      "The name of the destination index. If the index does not exist, it will be created at the "
       + "start of the connect";
   public static final String NUMBER_OF_SHARD = "index.shard";
   private static final String NUMBER_OF_SHARD_DOC =
