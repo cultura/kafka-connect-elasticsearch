@@ -62,9 +62,9 @@ public class ElasticClient {
   }
 
   /**
-   * Check if the index exist, and create it if not.
-   * Because of the distributed aspect of the connector, it might append that two instances create
-   * the index in the same time, and an exception will result of it. This is the reason why exception
+   * Check if the index exists, and create it if not.
+   * Because of the distributed aspect of the connector, it might happen that two instances create
+   * the index at the same time, and an exception will result from it. This is the reason why exceptions
    * aren't blocking in this method.
    *
    * @param mapping the index mapping created from the first record.
@@ -75,7 +75,7 @@ public class ElasticClient {
       boolean exists = this.client.indices()
           .exists(new GetIndexRequest(indexName), RequestOptions.DEFAULT);
       if (!exists) {
-        log.debug("elastic ---------------------------> Index does not exists, creating index {}",
+        log.debug("elastic ---------------------------> Index does not exist, creating index {}",
             indexName);
         CreateIndexRequest createIndexRequest = new CreateIndexRequest(indexName);
         createIndexRequest.settings(Settings.builder()
@@ -129,7 +129,7 @@ public class ElasticClient {
   }
 
   /**
-   * After a long idle time, the client might loose web socket connection.
+   * After a long idle time, the client might lose web socket connection.
    * The client has to be restarting to work again.
    */
   public synchronized void resetClient(){

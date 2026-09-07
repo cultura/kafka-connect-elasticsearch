@@ -34,7 +34,7 @@ import plugin.kafka.sink.elastic.health.TaskHealth;
 import plugin.kafka.sink.elastic.workers.BulkProcessorTask;
 
 /**
- * Contain the context used by the connector to run properly. Every classes use it to have access
+ * Contain the context used by the connector to run properly. All classes use it to have access
  * to the configuration values, the requests queue, the state of the task and the {@link ElasticClient}
  */
 @Builder
@@ -99,10 +99,10 @@ public class SharedContext {
   }
 
   /**
-   * Create a bulk of {@link IndexRequest}. Remove the firsts {@link ElasticsearchSinkConnectorConfig#BATCH_SIZE_CONFIG}
+   * Create a bulk of {@link IndexRequest}. Remove the first {@link ElasticsearchSinkConnectorConfig#BATCH_SIZE_CONFIG}
    * or the full queue, and increment the {@link SharedContext#inFlightRecords}
    *
-   * @return the list or request the {@link BulkProcessorTask} will send to Elasticsearch
+   * @return the list of requests the {@link BulkProcessorTask} will send to Elasticsearch
    */
   public synchronized List<IndexRequest> createBulk() {
     int bulkSize = Math.min(

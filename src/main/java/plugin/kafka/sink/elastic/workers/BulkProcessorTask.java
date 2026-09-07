@@ -37,7 +37,7 @@ import plugin.kafka.sink.elastic.configs.SharedContext;
 import plugin.kafka.sink.elastic.health.TaskHealth;
 
 /**
- * This class is the worker of the connector. It's an infinite while loop who take a batch from
+ * This class is the worker of the connector. It's an infinite while loop that takes a batch from
  * the {@link SharedContext#getUnsentRecords()} and send them to Elasticsearch.
  */
 @Slf4j
@@ -52,10 +52,10 @@ public class BulkProcessorTask implements Runnable {
 
   /**
    * The worker loop
-   * A delay {@link BulkProcessorTask#waitBeforeCreatingBatch()} make sur the bulk is as close as possible
+   * A delay {@link BulkProcessorTask#waitBeforeCreatingBatch()} makes sure the bulk is as close as possible
    * of {@link ElasticsearchSinkConnectorConfig#BATCH_SIZE_CONFIG} to use the Elasticsearch bulk API
    *
-   * Unrecoverable exception are thrown as {@link ConnectException}, the thread factory handle it as
+   * Unrecoverable exceptions are thrown as {@link ConnectException}, the thread factory handles it as
    * {@link TaskHealth#setException(ConnectException)}
    */
   @Override
@@ -115,7 +115,7 @@ public class BulkProcessorTask implements Runnable {
           return;
         }
       } catch (IOException | RuntimeException e){
-        log.error("batch {} ---------------------------> Unable to index data in during the {} attempt", batchId, i, e);
+        log.error("batch {} ---------------------------> Unable to index data during the {} attempt", batchId, i, e);
         this.sharedContext.getClient().resetClient();
       }
     }
@@ -131,7 +131,7 @@ public class BulkProcessorTask implements Runnable {
    *
    * @param bulk use for logging purpose
    * @param bulkResponse the response with possible failure
-   * @return true or false depending of failure message
+   * @return true or false depending on failure message
    */
   private boolean HandleResponse(List<IndexRequest> bulk, BulkResponse bulkResponse) {
     if (!bulkResponse.hasFailures()) {

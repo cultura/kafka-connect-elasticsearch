@@ -42,7 +42,7 @@ public class QueueDelayer {
 
   /**
    * Wait {@link ElasticsearchSinkConnectorConfig#LINGER_MS_CONFIG} until buffer isn't full or
-   * {@link ElasticsearchSinkConnectorConfig#FLUSH_TIMEOUT_MS_CONFIG} is reach.
+   * {@link ElasticsearchSinkConnectorConfig#FLUSH_TIMEOUT_MS_CONFIG} is reached.
    */
   public void waitBeforeAddRequest() {
     final long startTime = time.milliseconds();
@@ -63,7 +63,7 @@ public class QueueDelayer {
 
   /**
    * Wait {@link ElasticsearchSinkConnectorConfig#LINGER_MS_CONFIG} until buffer is empty or
-   * {@link ElasticsearchSinkConnectorConfig#FLUSH_TIMEOUT_MS_CONFIG} is reach.
+   * {@link ElasticsearchSinkConnectorConfig#FLUSH_TIMEOUT_MS_CONFIG} is reached.
    * @throws InterruptedException
    */
   public void waitDuringFlush() throws InterruptedException {

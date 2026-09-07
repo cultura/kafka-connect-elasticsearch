@@ -42,8 +42,8 @@ import plugin.kafka.sink.elastic.queue.QueueDelayer;
 import plugin.kafka.sink.elastic.workers.BulkProcessorTask;
 
 /**
- * This class is the brain of the connector. It handle the thread pool, put the records into the
- * {@link ConcurrentLinkedQueue}, handle the flush and close connections.
+ * This class is the brain of the connector. It handles the thread pool, puts the records into the
+ * {@link ConcurrentLinkedQueue}, handles the flush and closes connections.
  */
 @Builder
 @Slf4j
@@ -121,7 +121,7 @@ public class Orchestrator {
   }
 
   /**
-   * Wait until the buffer is empty or timeout is reach ({@link ElasticsearchSinkConnectorConfig#FLUSH_TIMEOUT_MS_CONFIG})
+   * Wait until the buffer is empty or timeout is reached ({@link ElasticsearchSinkConnectorConfig#FLUSH_TIMEOUT_MS_CONFIG})
    *
    * if Task is in failure state ({@link TaskHealth}), throw a {@link ConnectException}
    */
